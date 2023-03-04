@@ -1,0 +1,124 @@
+---
+title: "Dragon Phylogeny"
+author: "Jeremie Alexander"
+date: "01/03/2023"
+output: html_document
+---
+
+[Github](https://github.com/JeremieAlex/DragonPhylogeny.git)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Download data and install packages
+
+```{r}
+library(ape)
+
+
+setwd("~/Documents/BIOL_432/Week_7/Assignment/Data")
+DragonNexus = read.nexus.data("~/Documents/BIOL_432/Week_7/Assignment/Data/DragonMatrix.nex")
+tail(DragonNexus)
+```
+
+Append dragons to the nexus dataset
+
+```{r}
+#Make Dragon Names
+
+DragonNames = c("75AmericanX", "76CanadianX", "77AustralianX")
+
+#Encode Traits
+x75AmericanX = c(strsplit("100100110100000000000001110100001101101010001110100000???????0??00011100010011", ""))
+x76CanadianX = c(strsplit("10110011111100101000100100100111101100000000011000??0000???????0??100101000011", ""))
+x77AustralianX = c(strsplit("100111111110000000000110111100001100001100001000111000100000000000111000100100", ""))
+
+#Make Data Frame with my dragon traits
+TraitData = data.frame(x75AmericanX, x76CanadianX, x77AustralianX)
+colnames(TraitData) = DragonNames
+head(TraitData)
+
+#Append My dragon traits with nexus file
+
+NexusData = as.data.frame(DragonNexus)
+head(NexusData)
+
+Input = cbind(NexusData, TraitData)
+head(Input)
+
+```
+
+Apply the same trait weightings as those used in the Dragon Phylogeny Tutorial
+
+```{r}
+weightsDat = read.csv("~/Documents/BIOL_432/Week_7/Assignment/Data/Weights.csv")
+
+#Create single vector of weights
+
+weights = paste0(weightsDat$Weight, collapse = "")
+weights = strsplit(weights, split="")[[1]]
+
+#Convert each letter to a value
+
+WeightsNum = rep(NA, length(weights))
+for (i in 1:length(WeightsNum)){
+  if(weights[i] %in% LETTERS){
+    WeightsNum[i] = which(LETTERS==weights[i])+9
+  } else {
+    WeightsNum[i] = weights[i]
+  }
+}
+WeightsNum=as.numeric(WeightsNum)
+length(WeightsNum)
+
+#Multiply the weight value by the trait vector for each dragon
+
+wtInput = Input
+
+for (i in 1:length(Input)){
+  RepWeight = Input[[1]]==1
+  wtInput[[1]][RepWeight] = WeightsNum[RepWeight]
+  RepWeight = NA
+}
+
+#Re-Calculate distance matrix
+
+WtInputDF = data.frame(matrix(unlist(wtInput), ncol=78, byrow = T))
+row.names(WtInputDF) = names(wtInput)
+wtdragonDist = dist(WtInputDF, method = 'euclidean')
+wtdragonDistMat = as.matrix(wtdragonDist)
+```
+
+
+Embed images showing dragon choices in the R markdown report
+ 
+![Figure 1. Dragon generated using DALL-E AI image generator (https://openai.com/product/dall-e-2)](AmericanDragon.png)
+ 
+ ![Figure 2. Dragon generated using DALL-E AI image generator (https://openai.com/product/dall-e-2)](CanadianDragon.png)
+
+![Figure 3. Dragon generated using DALL-E AI image generator (https://openai.com/product/dall-e-2)](AustralianDragon.png)
+ 
+ Create a visually attractive phylogeny
+ 
+```{r}
+DragonTree = nj(wtdragonDist)
+
+#Download ggtree
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("ggtree")
+library(ggtree)
+
+#Make each group a different color
+country = gsub("[0-9\\.]+([^x]+)x*","\\1", DragonTree$tip.label)
+countryGroups = split(DragonTree$tip.label, country)
+WTDTcol = groupOTU(DragonTree, countryGroups)
+ggtree(WTDTcol, layout = "circular", aes(colour=group)) + geom_tiplab(size=2, aes(angle = angle))
+```
+
+Figure 4. Neigbor joining tree of 80 dragon species based on several traits.
+
+Fictional backstory and data interpretation:
+
+Out of all 80 dragons, my dragons seem to be very closely related as they all fall within one clade. This is due to convergent evolution since they all lived in similar conditions in their respective countries and thus developed similar traits (four appendages, large mass, etc).
